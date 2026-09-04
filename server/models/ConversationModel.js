@@ -16,6 +16,21 @@ const messageSchema = new mongoose.Schema({
     seen :{
         type : Boolean,
         default : false
+    },
+    deleted: {
+        type: Boolean,
+        default: false
+    },
+    msgByUserId : {
+        type : mongoose.Schema.ObjectId,
+        required : true,
+        ref : 'User'
+    },
+    replyTo : {
+        text: { type: String, default: "" },
+        imageUrl: { type: String, default: "" },
+        videoUrl: { type: String, default: "" },
+        msgByUserId: { type: mongoose.Schema.ObjectId, ref: 'User' }
     }
 },{
     timestamps : true

@@ -40,11 +40,12 @@ const CheckEmailPage = () => {
       toast.success(response.data.message)
       if(response.data.success){
         setData({
-          
           email : ""
         })
 
-        navigate('/password')
+        navigate('/password',{
+          state : response?.data?.data
+        })
       }
     } catch (error) {
       toast.error(error?.response?.data?.message)

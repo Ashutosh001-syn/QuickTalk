@@ -1,5 +1,6 @@
 const getUserDetailsFromToken = require('../helpers/getUserDetailsFromToken');
 const FriendRequestModel = require('../models/FriendRequestModel');
+const { io, userSocketMap } = require('../socket/index');
 
 async function sendFriendRequest(request, response) {
     try {
@@ -41,6 +42,19 @@ async function sendFriendRequest(request, response) {
                 existing.to = toUserId;
                 existing.status = 'pending';
                 await existing.save();
+
+                const receiverSocketId = userSocketMap.get(toUserId);
+                if (receiverSocketId) {
+                    io.to(receiverSocketId).emit('friend_request', {
+                        from: {
+                            _id: user._id,
+                            name: user.name,
+                            profile_pic: user.profile_pic
+                        },
+                        status: 'pending'
+                    });
+                }
+
                 return response.status(200).json({ message: "Friend request sent", success: true });
             }
         }
@@ -50,6 +64,18 @@ async function sendFriendRequest(request, response) {
             to: toUserId
         });
         await newRequest.save();
+
+        const receiverSocketId = userSocketMap.get(toUserId);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('friend_request', {
+                from: {
+                    _id: user._id,
+                    name: user.name,
+                    profile_pic: user.profile_pic
+                },
+                status: 'pending'
+            });
+        }
 
         return response.status(200).json({ message: "Friend request sent", success: true });
 

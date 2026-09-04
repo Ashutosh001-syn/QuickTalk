@@ -62,7 +62,7 @@ const Home = () => {
 
   return (
     <div className='grid lg:grid-cols-[300px,1fr] h-screen max-h-screen'>
-      <section className={`bg-white ${!basePath && 'hidden'} lg:block`}>
+      <section className={`bg-bg-secondary transition-colors ${!basePath && 'hidden'} lg:block`}>
         <Sidebar user={user} onlineUsers={onlineUsers} socketConnection={socketConnection} />
       </section>
 
@@ -72,7 +72,7 @@ const Home = () => {
       </section>
       
       {basePath && (
-        <div className='hidden lg:flex justify-center items-center flex-col h-full bg-slate-50'>
+        <div className='hidden lg:flex justify-center items-center flex-col h-full bg-bg-primary transition-colors'>
           <div>
              <img src={logo} alt="logo" width={250} />
           </div>

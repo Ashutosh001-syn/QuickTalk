@@ -1,5 +1,6 @@
 const UserModel = require('../models/UserModel');
 const getUserDetailsFromToken = require('../helpers/getUserDetailsFromToken');
+const FriendRequestModel = require('../models/FriendRequestModel');
 
 async function getUsers(request, response) {
     try {
@@ -13,8 +14,32 @@ async function getUsers(request, response) {
             });
         }
 
+        // Get accepted friend requests only
+        const acceptedRequests = await FriendRequestModel.find({
+            $or: [
+                { from: user._id, status: 'accepted' },
+                { to: user._id, status: 'accepted' }
+            ]
+        });
+
+        // Extract friend IDs
+        const friendIds = acceptedRequests.map(req => {
+            return req.from.toString() === user._id.toString()
+                ? req.to
+                : req.from;
+        });
+
+        // If no friends, return empty
+        if (friendIds.length === 0) {
+            return response.status(200).json({
+                message: "No friends yet",
+                success: true,
+                data: []
+            });
+        }
+
         const { conversationModel } = require('../models/ConversationModel');
-        const allUsers = await UserModel.find({ _id: { $ne: user._id } }).select("-password");
+        const friends = await UserModel.find({ _id: { $in: friendIds } }).select("-password");
 
         const conversations = await conversationModel.find({
             $or: [
@@ -23,7 +48,7 @@ async function getUsers(request, response) {
             ]
         }).populate('messages');
 
-        const userList = allUsers.map(u => {
+        const userList = friends.map(u => {
             const userObj = u.toObject();
             const conv = conversations.find(c => 
                 c.sender.toString() === u._id.toString() || 
@@ -32,7 +57,6 @@ async function getUsers(request, response) {
             
             if (conv && conv.messages.length > 0) {
                 userObj.lastMessage = conv.messages[conv.messages.length - 1];
-                // Count unseen messages sent by this user
                 userObj.unseenMsg = conv.messages.filter(msg => 
                     msg.seen === false && msg.msgByUserId.toString() !== user._id.toString()
                 ).length;
@@ -44,7 +68,7 @@ async function getUsers(request, response) {
         });
 
         return response.status(200).json({
-            message: "All users fetched",
+            message: "Friends fetched",
             success: true,
             data: userList
         });

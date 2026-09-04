@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useOutletContext } from 'react-router-dom';
-import { FaAngleLeft, FaPlus, FaImage, FaVideo, FaTrash, FaBell, FaReply } from 'react-icons/fa6';
+import { FaAngleLeft, FaPlus, FaImage, FaVideo, FaTrash, FaBell, FaReply, FaCheck, FaCheckDouble } from 'react-icons/fa6';
 import { IoClose } from 'react-icons/io5';
 import { IoMdSend } from 'react-icons/io';
 import { PiUserCircle } from 'react-icons/pi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import bg from '../assets/wallapaper.jpeg';
+
+const formatTime = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 const MessagePage = () => {
   const { userId } = useParams();
@@ -84,12 +91,25 @@ const MessagePage = () => {
             : msg
         ));
       };
+
+      const handleMessagesSeen = (payload) => {
+        if (payload.seenBy === userId) {
+          setMessages((prev) => prev.map(msg => 
+            msg.msgByUserId === user._id ? { ...msg, seen: true } : msg
+          ));
+        }
+      };
       
       socketConnection.on('message_deleted', handleMessageDeleted);
+      socketConnection.on('messages_seen', handleMessagesSeen);
+
+      // Emit mark_as_seen as soon as we connect/open the chat
+      socketConnection.emit('mark_as_seen', { senderId: userId });
 
       return () => {
         socketConnection.off('new_message', handleNewMessage);
         socketConnection.off('message_deleted', handleMessageDeleted);
+        socketConnection.off('messages_seen', handleMessagesSeen);
       };
     }
   }, [socketConnection, userId]);
@@ -150,7 +170,7 @@ const MessagePage = () => {
 
   return (
     <div className='bg-no-repeat bg-cover flex flex-col h-screen'>
-      <header className='sticky top-0 h-16 bg-white flex justify-between items-center px-4 shadow-sm z-10'>
+      <header className='sticky top-0 h-16 bg-bg-header text-text-primary flex justify-between items-center px-4 shadow-sm z-10 transition-colors'>
         <div className='flex items-center gap-4'>
           <Link to='/' className='lg:hidden'>
             <FaAngleLeft size={25} />
@@ -183,7 +203,7 @@ const MessagePage = () => {
       </header>
 
       {/* Show all messages */}
-      <section className='flex-1 overflow-x-hidden overflow-y-auto scrollbar relative bg-slate-100 p-4'>
+      <section className='flex-1 overflow-x-hidden overflow-y-auto scrollbar relative bg-bg-chat p-4 transition-colors'>
         <div className='flex flex-col gap-2 py-2 mx-2'>
           {messages.map((msg, index) => {
             const isMe = msg.msgByUserId === user?._id;
@@ -191,18 +211,18 @@ const MessagePage = () => {
               <div key={index} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group relative`}>
                 <div
                   className={`p-2 py-1 rounded-lg w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${
-                    isMe ? 'bg-teal-100' : 'bg-white'
-                  }`}
+                    isMe ? 'bg-bg-bubble-me text-text-primary' : 'bg-bg-bubble-other text-text-primary'
+                  } shadow-sm transition-colors`}
                 >
                   {/* Reply quote inside the bubble — like Teams */}
                   {msg.replyTo && msg.replyTo.msgByUserId && (
                     <div className='bg-black/5 border-l-[3px] border-primary rounded px-2 py-1 mb-1 cursor-pointer'>
                       <p className='text-[11px] font-semibold text-primary'>{msg.replyTo.msgByUserId === user?._id ? 'You' : userData.name}</p>
-                      <p className='text-xs text-slate-500 truncate'>{msg.replyTo.text || (msg.replyTo.imageUrl ? '📷 Photo' : '🎥 Video')}</p>
+                      <p className='text-xs text-text-secondary truncate'>{msg.replyTo.text || (msg.replyTo.imageUrl ? '📷 Photo' : '🎥 Video')}</p>
                     </div>
                   )}
                   {msg.deleted ? (
-                    <p className='px-2 italic text-slate-500'>🚫 This message was deleted</p>
+                    <p className='px-2 italic text-text-muted'>🚫 This message was deleted</p>
                   ) : (
                     <>
                       {msg.imageUrl && (
@@ -212,6 +232,20 @@ const MessagePage = () => {
                         <video src={msg.videoUrl} className='w-full rounded mb-1 object-cover' controls />
                       )}
                       {msg.text && <p className='px-2'>{msg.text}</p>}
+                      
+                      {/* Time and Read Receipt */}
+                      <div className="flex justify-end items-center gap-1 mt-1 -mb-1 pr-1">
+                        <span className="text-[10px] text-slate-500 opacity-70">
+                          {formatTime(msg.createdAt)}
+                        </span>
+                        {isMe && (
+                          msg.seen ? (
+                            <FaCheckDouble size={12} className="text-blue-500" title="Seen" />
+                          ) : (
+                            <FaCheck size={12} className="text-slate-400" title="Delivered" />
+                          )
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -248,7 +282,7 @@ const MessagePage = () => {
       </section>
 
       {/* Send message */}
-      <section className='h-16 bg-white flex items-center px-4 shadow-t-sm'>
+      <section className='h-16 bg-bg-input flex items-center px-4 shadow-t-sm transition-colors'>
         <div className='relative'>
           <button
             onClick={handleUploadImageVideoOpen}
@@ -304,7 +338,7 @@ const MessagePage = () => {
           <input
             type='text'
             placeholder='Type here message...'
-            className='py-1 px-4 outline-none w-full h-full'
+            className='py-1 px-4 outline-none w-full h-full bg-transparent text-text-primary placeholder:text-text-muted'
             value={message}
             onChange={handleOnChange}
           />

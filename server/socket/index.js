@@ -90,7 +90,44 @@ io.on('connection', async (socket) => {
             const receiverSocketId = userSocketMap.get(receiver);
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit('new_message', payload);
+            } else {
+                // Receiver is offline, send background push notification
+                try {
+                    const receiverUser = await UserModel.findById(receiver);
+                    if (receiverUser && receiverUser.pushSubscriptions && receiverUser.pushSubscriptions.length > 0) {
+                        const senderUser = await UserModel.findById(userId);
+                        const pushPayload = JSON.stringify({
+                            title: `New message from ${senderUser.name}`,
+                            body: saveMessage.text || 'You received a new message',
+                            url: '/',
+                            icon: senderUser.profile_pic || '/favicon.ico'
+                        });
+
+                        const webpush = require('web-push');
+                        webpush.setVapidDetails(
+                            process.env.VAPID_SUBJECT || 'mailto:admin@quicktalk.com',
+                            process.env.VAPID_PUBLIC_KEY,
+                            process.env.VAPID_PRIVATE_KEY
+                        );
+
+                        const notifications = receiverUser.pushSubscriptions.map(sub => 
+                            webpush.sendNotification(sub, pushPayload).catch(err => {
+                                if (err.statusCode === 410 || err.statusCode === 404) {
+                                    // Subscription has expired or is no longer valid, we could remove it from DB here
+                                    return UserModel.updateOne(
+                                        { _id: receiverUser._id },
+                                        { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }
+                                    );
+                                }
+                            })
+                        );
+                        await Promise.all(notifications);
+                    }
+                } catch (pushError) {
+                    console.error("Error sending web push notification:", pushError);
+                }
             }
+            
             
             // Emit back to sender so they see it instantly
             io.to(socket.id).emit('new_message', payload);
@@ -132,6 +169,29 @@ io.on('connection', async (socket) => {
         }
     });
 
+    socket.on('mark_as_seen', async (data) => {
+        const { senderId } = data; // The person who sent the messages that the current user (userId) is now seeing
+        try {
+            // Find all unread messages sent by senderId to the current user, and mark them as seen
+            const result = await MessageModel.updateMany(
+                { msgByUserId: senderId, seen: false }, 
+                { seen: true }
+            );
+
+            // If we actually updated some messages, notify the sender that they were seen
+            if (result.modifiedCount > 0) {
+                const senderSocketId = userSocketMap.get(senderId);
+                if (senderSocketId) {
+                    io.to(senderSocketId).emit('messages_seen', {
+                        seenBy: userId // Tell the sender that this specific user saw their messages
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error marking messages as seen", error);
+        }
+    });
+
     socket.on('disconnect', () => {
         onlineUsers.delete(userId);
         userSocketMap.delete(userId);
@@ -140,4 +200,4 @@ io.on('connection', async (socket) => {
     });
 });
 
-module.exports = { app, server, io };
+module.exports = { app, server, io, userSocketMap };

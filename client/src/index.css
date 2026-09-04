@@ -1,6 +1,61 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Theme: Light (default) */
+:root, [data-theme="light"] {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #ffffff;
+  --bg-chat: #f1f5f9;
+  --bg-bubble-me: #ccfbf1;
+  --bg-bubble-other: #ffffff;
+  --bg-input: #ffffff;
+  --bg-sidebar: #f8fafc;
+  --bg-header: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --accent: #00acb4;
+  --accent-hover: #058186;
+}
+
+/* Theme: Dark */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-chat: #0f172a;
+  --bg-bubble-me: #164e63;
+  --bg-bubble-other: #1e293b;
+  --bg-input: #1e293b;
+  --bg-sidebar: #1e293b;
+  --bg-header: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  --accent: #22d3ee;
+  --accent-hover: #06b6d4;
+}
+
+/* Theme: Ocean */
+[data-theme="ocean"] {
+  --bg-primary: #0c1222;
+  --bg-secondary: #172042;
+  --bg-chat: #0c1222;
+  --bg-bubble-me: #1e3a5f;
+  --bg-bubble-other: #172042;
+  --bg-input: #172042;
+  --bg-sidebar: #172042;
+  --bg-header: #172042;
+  --text-primary: #e0f2fe;
+  --text-secondary: #7dd3fc;
+  --text-muted: #38bdf8;
+  --border-color: #1e3a5f;
+  --accent: #38bdf8;
+  --accent-hover: #0284c7;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -8,7 +63,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  @apply bg-slate-200;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 code {

@@ -1,5 +1,6 @@
 const getUserDetailsFromToken = require('../helpers/getUserDetailsFromToken');
 const FriendRequestModel = require('../models/FriendRequestModel');
+const { io, userSocketMap } = require('../socket/index');
 
 async function respondFriendRequest(request, response) {
     try {
@@ -36,6 +37,28 @@ async function respondFriendRequest(request, response) {
         }
 
         await friendRequest.save();
+
+        const senderSocketId = userSocketMap.get(friendRequest.from.toString());
+        if (senderSocketId) {
+            io.to(senderSocketId).emit('request_response', {
+                requestId: friendRequest._id,
+                status: friendRequest.status,
+                to: {
+                    _id: user._id,
+                    name: user.name,
+                    profile_pic: user.profile_pic
+                }
+            });
+        }
+
+        // Also emit to receiver (the person accepting) so they can update their local state instantly
+        const receiverSocketId = userSocketMap.get(user._id.toString());
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('request_response', {
+                requestId: friendRequest._id,
+                status: friendRequest.status
+            });
+        }
 
         return response.status(200).json({
             message: `Request ${action}ed`,

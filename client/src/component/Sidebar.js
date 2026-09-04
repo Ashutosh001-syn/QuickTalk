@@ -1,15 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { IoChatbubbleEllipses } from 'react-icons/io5';
-import { FaUserPlus } from 'react-icons/fa';
+import { FaUserPlus, FaBell } from 'react-icons/fa';
 import { BiLogOut } from 'react-icons/bi';
 import { PiUserCircle } from 'react-icons/pi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import SearchUser from './SearchUser';
+import FriendRequests from './FriendRequests';
+import ProfilePage from './ProfilePage';
+import { registerAndSubscribePush } from '../helpers/pushNotifications';
 
 const Sidebar = ({ user, onlineUsers, socketConnection }) => {
   const navigate = useNavigate();
   const [users, setUsers] = React.useState([]);
+  const [openSearchUser, setOpenSearchUser] = React.useState(false);
+  const [openRequests, setOpenRequests] = React.useState(false);
+  const [friendRequests, setFriendRequests] = React.useState([]);
+  const [openProfile, setOpenProfile] = React.useState(false);
+
+  useEffect(() => {
+    registerAndSubscribePush();
+  }, []);
 
   React.useEffect(() => {
     const fetchUsers = async () => {
@@ -23,7 +35,21 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
         console.error('Failed to fetch users', error);
       }
     };
+
+    const fetchRequests = async () => {
+      try {
+        const URL = `${process.env.REACT_APP_BACKEND_URL}/api/friend-requests`;
+        const response = await axios.get(URL, { withCredentials: true });
+        if (response.data.success) {
+          setFriendRequests(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch requests', error);
+      }
+    };
+
     fetchUsers();
+    fetchRequests();
   }, []);
 
   const previousOnlineUsers = React.useRef(onlineUsers);
@@ -137,18 +163,52 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
             if (msg.imageUrl) bodyText = '📷 Photo';
             if (msg.videoUrl) bodyText = '🎥 Video';
             
-            new Notification(senderName, {
-              body: bodyText,
-              icon: senderIcon,
-            });
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(senderName, {
+                  body: bodyText,
+                  icon: senderIcon,
+                  badge: '/favicon.ico'
+                });
+              });
+            } else {
+              try {
+                new Notification(senderName, {
+                  body: bodyText,
+                  icon: senderIcon,
+                });
+              } catch (err) {
+                console.log('Native notification failed:', err);
+              }
+            }
           }
         }
       };
       
       socketConnection.on('new_message', handleNewMessage);
+      socketConnection.on('friend_request', (req) => {
+        setFriendRequests(prev => [...prev, req]);
+        toast(`New friend request from ${req.sender.name}`, { icon: '👋' });
+      });
+      socketConnection.on('request_response', (resp) => {
+        if (resp.status === 'accepted') {
+          // fetch users again to show in sidebar
+          const fetchUsers = async () => {
+            const URL = `${process.env.REACT_APP_BACKEND_URL}/api/users`;
+            const response = await axios.get(URL, { withCredentials: true });
+            if (response.data.success) {
+              setUsers(response.data.data);
+            }
+          };
+          fetchUsers();
+          toast.success(`${resp.receiver.name} accepted your request`);
+        }
+      });
       
       return () => {
         socketConnection.off('new_message', handleNewMessage);
+        socketConnection.off('friend_request');
+        socketConnection.off('request_response');
       };
     }
   }, [socketConnection, users, user, location.pathname]);
@@ -171,6 +231,24 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
 
   const handleLogout = async () => {
     try {
+      // Unsubscribe from push notifications so the user stops getting them when logged out
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          try {
+            await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/unsubscribe-push`, {
+              endpoint: subscription.endpoint
+            }, { withCredentials: true });
+            
+            // Optionally, we could call subscription.unsubscribe() here to completely revoke it from the browser
+            // await subscription.unsubscribe();
+          } catch (err) {
+            console.error("Failed to remove push subscription", err);
+          }
+        }
+      }
+
       const URL = `${process.env.REACT_APP_BACKEND_URL}/api/logout`;
       const response = await axios.get(URL, { withCredentials: true });
       if (response.data.success) {
@@ -187,9 +265,9 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
   };
 
   return (
-    <div className='w-full h-full bg-white flex'>
+    <div className='w-full h-full bg-bg-secondary text-text-primary transition-colors flex'>
       {/* Left Icon Menu */}
-      <div className='bg-slate-100 w-16 h-full flex flex-col justify-between py-5 items-center rounded-tr-lg rounded-br-lg shadow-sm z-10'>
+      <div className='bg-bg-sidebar w-16 h-full flex flex-col justify-between py-5 items-center rounded-tr-lg rounded-br-lg shadow-sm z-10 transition-colors'>
         <div className='flex flex-col gap-5'>
           <NavLink
             className={({ isActive }) => `w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded ${isActive ? 'bg-slate-200' : ''}`}
@@ -197,13 +275,21 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
           >
             <IoChatbubbleEllipses size={25} />
           </NavLink>
-          <div className='w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded' title='Add Friend'>
+          <div title='Add Friend' onClick={() => setOpenSearchUser(true)} className='w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded' >
             <FaUserPlus size={25} />
+          </div>
+          <div title='Friend Requests' onClick={() => setOpenRequests(true)} className='relative w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded'>
+            <FaBell size={25} />
+            {friendRequests.length > 0 && (
+              <span className='absolute top-2 right-2 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center'>
+                {friendRequests.length}
+              </span>
+            )}
           </div>
         </div>
 
         <div className='flex flex-col gap-5 items-center'>
-          <button className='w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded' title={user?.name}>
+          <button className='w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-slate-200 rounded' title='Profile' onClick={() => setOpenProfile(true)}>
             {user?.profile_pic ? (
               <img src={user?.profile_pic} className='w-10 h-10 rounded-full object-cover' alt='profile' />
             ) : (
@@ -225,7 +311,7 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
       {/* Main Sidebar Area */}
       <div className='w-full'>
         <div className='h-16 flex items-center px-4'>
-          <h2 className='text-xl font-bold text-slate-800 h-16 p-4'>Messages</h2>
+          <h2 className='text-xl font-bold text-text-primary h-16 p-4'>Messages</h2>
         </div>
         <div className='bg-slate-200 p-[0.5px]'></div>
 
@@ -251,7 +337,7 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
               <NavLink
                 to={`/${contact._id}`}
                 key={contact._id}
-                className={({ isActive }) => `flex items-center gap-2 py-3 px-2 border border-transparent hover:border-primary rounded hover:bg-slate-100 cursor-pointer ${isActive ? 'bg-slate-100 border-primary' : ''}`}
+                className={({ isActive }) => `flex items-center gap-2 py-3 px-2 border border-transparent hover:border-primary rounded hover:bg-bg-primary transition-colors cursor-pointer ${isActive ? 'bg-bg-primary border-primary' : ''}`}
               >
                 <div className='relative'>
                   {contact.profile_pic ? (
@@ -260,13 +346,13 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
                     <PiUserCircle size={40} />
                   )}
                   {isOnline && (
-                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white'></div>
+                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-theme'></div>
                   )}
                 </div>
                 <div className='flex-1'>
-                  <h3 className='text-ellipsis line-clamp-1 font-semibold text-base'>{contact.name}</h3>
-                  <div className='text-slate-500 text-xs flex items-center gap-1'>
-                    <div className='text-sm text-slate-500 text-ellipsis line-clamp-1'>
+                  <h3 className='text-ellipsis line-clamp-1 font-semibold text-base text-text-primary'>{contact.name}</h3>
+                  <div className='text-text-secondary text-xs flex items-center gap-1'>
+                    <div className='text-sm text-text-secondary text-ellipsis line-clamp-1'>
                       {contact.lastMessage ? (
                         <span className='flex items-center gap-1'>
                           {contact.lastMessage.imageUrl && <span>📷</span>}
@@ -291,6 +377,20 @@ const Sidebar = ({ user, onlineUsers, socketConnection }) => {
           })}
         </div>
       </div>
+      {/* Search User */}
+      {openSearchUser && (
+        <SearchUser onClose={() => setOpenSearchUser(false)} />
+      )}
+
+      {/* Friend Requests */}
+      {openRequests && (
+        <FriendRequests onClose={() => setOpenRequests(false)} requests={friendRequests} setRequests={setFriendRequests} />
+      )}
+
+      {/* Profile Page */}
+      {openProfile && (
+        <ProfilePage user={user} onClose={() => setOpenProfile(false)} />
+      )}
     </div>
   );
 };

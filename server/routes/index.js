@@ -15,7 +15,10 @@ const getFriendRequests = require('../controller/getFriendRequests')
 const searchUsers = require('../controller/searchUsers')
 const subscribePush = require('../controller/subscribePush')
 const unsubscribePush = require('../controller/unsubscribePush')
+const getCallLogs = require('../controller/getCallLogs')
 const changePassword = require('../controller/changePassword')
+const getTurnCredentials = require('../controller/getTurnCredentials')
+const unfollowUser = require('../controller/unfollowUser')
 
 const router = express.Router()
 
@@ -36,10 +39,15 @@ router.post('/friend-request', sendFriendRequest)
 router.post('/friend-request/respond', respondFriendRequest)
 router.get('/friend-requests', getFriendRequests)
 router.get('/search-users', searchUsers)
+router.delete('/friends/:userId', unfollowUser)
 
 // Web Push Subscriptions
 router.post('/subscribe-push', subscribePush)
 router.post('/unsubscribe-push', unsubscribePush)
+
+// call logs api
+router.get('/call-logs', getCallLogs)
+router.get('/turn-credentials', getTurnCredentials)
 
 // Profile
 router.post('/change-password', changePassword)

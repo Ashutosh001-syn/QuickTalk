@@ -26,7 +26,7 @@ io.on('connection', async (socket) => {
     // Check if user is authenticated
     const user = await getUserDetailsFromToken(token);
     
-    if (user.logout || !user) {
+    if (!user || user.logout) {
         return socket.disconnect();
     }
 
@@ -137,6 +137,14 @@ io.on('connection', async (socket) => {
         }
     });
 
+    // Typing events are deliberately not persisted; they are only relevant while both users are online.
+    socket.on('typing_status', ({ receiverId, isTyping }) => {
+        const receiverSocketId = userSocketMap.get(String(receiverId));
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('typing_status', { senderId: userId, isTyping: Boolean(isTyping) });
+        }
+    });
+
     socket.on('delete_message', async (data) => {
         const { messageId, receiverId } = data;
         try {
@@ -191,6 +199,102 @@ io.on('connection', async (socket) => {
             console.error("Error marking messages as seen", error);
         }
     });
+
+    // --- WEBRTC CALLING SIGNALING ---
+
+    socket.on('initiate_call', (data, acknowledgement) => {
+        const { userToCall, signalData, callId, callerName, callerPic, isVideo } = data;
+        const receiverSocketId = userSocketMap.get(String(userToCall));
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('incoming_call', {
+                signal: signalData,
+                callId,
+                from: userId,
+                callerName,
+                callerPic,
+                isVideo
+            });
+            acknowledgement?.({ ok: true });
+        } else {
+            socket.emit('call_unavailable', { callId });
+            acknowledgement?.({ ok: false, message: 'This user is offline.' });
+        }
+    });
+
+    socket.on('accept_call', (data) => {
+        const { to, signal, callId } = data;
+        const callerSocketId = userSocketMap.get(String(to));
+        if (callerSocketId) {
+            io.to(callerSocketId).emit('call_accepted', { callId, signal });
+        }
+    });
+
+    socket.on('end_call', (data) => {
+        const { to, callId } = data;
+        const otherSocketId = userSocketMap.get(String(to));
+        if (otherSocketId) {
+            io.to(otherSocketId).emit('call_ended', { callId });
+        }
+    });
+
+    socket.on('save_call_log', async (data) => {
+        const { receiverId, callType, callDuration } = data;
+        
+        try {
+            const msgData = {
+                text: "",
+                imageUrl: "",
+                videoUrl: "",
+                isCall: true,
+                callType,
+                callDuration,
+                msgByUserId: userId
+            };
+            
+            const newMessage = new MessageModel(msgData);
+            const saveMessage = await newMessage.save();
+            
+            // Find or create conversation
+            let conversation = await conversationModel.findOne({
+                $or: [
+                    { sender: userId, receiver: receiverId },
+                    { sender: receiverId, receiver: userId }
+                ]
+            });
+
+            if (!conversation) {
+                conversation = new conversationModel({
+                    sender: userId,
+                    receiver: receiverId,
+                    messages: [saveMessage._id]
+                });
+            } else {
+                conversation.messages.push(saveMessage._id);
+            }
+            
+            await conversation.save();
+
+            const payload = {
+                ...saveMessage.toObject(),
+                sender: userId,
+                receiver: receiverId
+            };
+
+            // Emit to receiver if online
+            const receiverSocketId = userSocketMap.get(receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('new_message', payload);
+            }
+            
+            // Emit back to sender
+            io.to(socket.id).emit('new_message', payload);
+
+        } catch (error) {
+            console.error("Error saving call log", error);
+        }
+    });
+
+    // --------------------------------
 
     socket.on('disconnect', () => {
         onlineUsers.delete(userId);

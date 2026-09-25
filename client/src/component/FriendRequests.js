@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { IoClose } from "react-icons/io5";
 import { PiUserCircle } from "react-icons/pi";
@@ -25,65 +27,101 @@ const FriendRequests = ({ onClose, requests, setRequests }) => {
         }
     };
 
-    return (
-        <div className='fixed top-0 bottom-0 left-0 right-0 bg-slate-700 bg-opacity-40 p-2 z-50 flex justify-center items-center'>
-            <div className='w-full max-w-lg mx-auto bg-white rounded-lg shadow-lg relative overflow-hidden'>
-                {/* Header */}
-                <div className='p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10'>
-                    <h2 className='text-xl font-semibold text-slate-800'>Friend Requests</h2>
-                    <button onClick={onClose} className='p-2 hover:bg-slate-100 rounded-full transition-all'>
-                        <IoClose size={24} className="text-slate-500" />
-                    </button>
-                </div>
+    return ReactDOM.createPortal(
+        <AnimatePresence>
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className='fixed top-0 bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm sm:p-2 z-50 flex justify-center items-center'
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, y: -20, opacity: 0 }} 
+                    animate={{ scale: 1, y: 0, opacity: 1 }} 
+                    exit={{ scale: 0.9, y: -20, opacity: 0 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    className='glass-panel w-full h-full sm:h-auto sm:max-w-lg mx-auto sm:rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] sm:border border-white/10 relative overflow-hidden flex flex-col'
+                >
+                    {/* Header */}
+                    <div className='p-4 border-b border-white/10 flex justify-between items-center glass-panel sticky top-0 z-10'>
+                        <h2 className='text-xl font-semibold text-white'>Friend Requests</h2>
+                        <button onClick={onClose} className='p-2 hover:bg-white/10 rounded-full transition-all'>
+                            <IoClose size={24} className="text-gray-300" />
+                        </button>
+                    </div>
 
-                {/* Results List */}
-                <div className='bg-slate-50 w-full h-[60vh] max-h-[500px] overflow-y-auto p-4 scrollbar'>
-                    {requests.length === 0 ? (
-                        <div className='h-full flex flex-col items-center justify-center text-slate-400 gap-2'>
-                            <p className='text-lg'>No pending requests</p>
-                        </div>
-                    ) : (
-                        <div className='flex flex-col gap-3'>
-                            {requests.map((req) => (
-                                <div key={req._id} className='bg-white flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-slate-200 rounded-xl shadow-sm gap-4'>
-                                    <div className='flex items-center gap-3'>
-                                        <div>
-                                            {req.from?.profile_pic ? (
-                                                <img src={req.from.profile_pic} className='w-14 h-14 object-cover rounded-full shadow-sm' alt={req.from.name} />
-                                            ) : (
-                                                <PiUserCircle size={56} className='text-slate-400' />
-                                            )}
-                                        </div>
-                                        <div className='min-w-0'>
-                                            <div className='font-semibold text-slate-800 text-lg'>
-                                                {req.from?.name}
+                    {/* Results List */}
+                    <div className='flex-1 w-full sm:h-[60vh] sm:max-h-[500px] overflow-y-auto p-4 scrollbar pb-20 sm:pb-4'>
+                        {requests.length === 0 ? (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className='h-full flex flex-col items-center justify-center text-gray-400 gap-2'>
+                                <p className='text-lg'>No pending requests</p>
+                            </motion.div>
+                        ) : (
+                            <motion.div 
+                                initial="hidden"
+                                animate="visible"
+                                variants={{
+                                    hidden: { opacity: 0 },
+                                    visible: {
+                                        opacity: 1,
+                                        transition: { staggerChildren: 0.1 }
+                                    }
+                                }}
+                                className='flex flex-col gap-3'
+                            >
+                                {requests.map((req) => (
+                                    <motion.div 
+                                        variants={{
+                                            hidden: { x: -20, opacity: 0 },
+                                            visible: { x: 0, opacity: 1 }
+                                        }}
+                                        key={req._id} 
+                                        className='glass-panel flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-white/5 rounded-2xl shadow-sm gap-4 hover:bg-white/10 transition-all'
+                                    >
+                                        <div className='flex items-center gap-3'>
+                                            <div>
+                                                {req.from?.profile_pic ? (
+                                                    <img src={req.from.profile_pic} className='w-14 h-14 object-cover rounded-full shadow-sm' alt={req.from.name} />
+                                                ) : (
+                                                    <PiUserCircle size={56} className='text-gray-400' />
+                                                )}
                                             </div>
-                                            <p className='text-sm text-slate-500'>{req.from?.email}</p>
+                                            <div className='min-w-0'>
+                                                <div className='font-semibold text-white text-lg'>
+                                                    {req.from?.name}
+                                                </div>
+                                                <p className='text-sm text-gray-400'>{req.from?.email}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className='flex gap-2 w-full sm:w-auto'>
-                                        <button 
-                                            onClick={() => respondToRequest(req._id, 'accept')}
-                                            disabled={loading}
-                                            className='flex-1 sm:flex-none px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50'
-                                        >
-                                            Accept
-                                        </button>
-                                        <button 
-                                            onClick={() => respondToRequest(req._id, 'reject')}
-                                            disabled={loading}
-                                            className='flex-1 sm:flex-none px-6 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors shadow-sm disabled:opacity-50'
-                                        >
-                                            Reject
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                                        <div className='flex gap-2 w-full sm:w-auto'>
+                                            <motion.button 
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => respondToRequest(req._id, 'accept')}
+                                                disabled={loading}
+                                                className='flex-1 sm:flex-none px-6 py-2 bg-bg-bubble-me text-white font-medium rounded-lg shadow-[0_0_15px_rgba(0,198,255,0.4)] transition-all disabled:opacity-50'
+                                            >
+                                                Accept
+                                            </motion.button>
+                                            <motion.button 
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => respondToRequest(req._id, 'reject')}
+                                                disabled={loading}
+                                                className='flex-1 sm:flex-none px-6 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 transition-all disabled:opacity-50'
+                                            >
+                                                Reject
+                                            </motion.button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        )}
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>,
+        document.body
     );
 };
 

@@ -5,7 +5,7 @@ import toast, {Toaster} from 'react-hot-toast';
 
 function App() {
   useEffect(() => {
-    const savedTheme = localStorage.getItem('chat-theme') || 'light';
+    const savedTheme = localStorage.getItem('chat-theme') || 'premium';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 

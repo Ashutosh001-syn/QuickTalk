@@ -6,6 +6,16 @@ import reportWebVitals from './reportWebVitals';
 import { RouterProvider } from 'react-router-dom';
 import router from './routes';
 
+const originalError = window.onerror;
+window.onerror = function(message, source, lineno, colno, error) {
+  if (typeof message === 'string' && (message.includes('ResizeObserver loop completed with undelivered notifications') || message.includes('ResizeObserver loop limit exceeded'))) {
+    return true; // Prevents the error from propagating to the Webpack overlay
+  }
+  if (originalError) {
+    return originalError(message, source, lineno, colno, error);
+  }
+};
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

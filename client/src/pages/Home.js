@@ -3,7 +3,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
 import Sidebar from '../component/Sidebar';
-import logo from '../assets/logo.png';
+import { CallProvider } from '../context/CallContext';
+import CallScreen from '../component/CallScreen';
 
 const Home = () => {
   const [user, setUser] = useState(null);
@@ -14,6 +15,7 @@ const Home = () => {
   const location = useLocation();
 
   useEffect(() => {
+    let socket;
     const fetchUserDetails = async () => {
       try {
         const URL = `${process.env.REACT_APP_BACKEND_URL}/api/user-details`;
@@ -26,7 +28,7 @@ const Home = () => {
           
           // Connect Socket
           const token = localStorage.getItem('token');
-          const socket = io(process.env.REACT_APP_BACKEND_URL, {
+          socket = io(process.env.REACT_APP_BACKEND_URL, {
             auth: {
               token: token
             }
@@ -48,37 +50,36 @@ const Home = () => {
     fetchUserDetails();
 
     return () => {
-      if (socketConnection) {
-        socketConnection.disconnect();
-      }
+      socket?.disconnect();
     };
   }, [navigate]);
 
   if (!user) {
-    return <div className="flex justify-center items-center h-screen bg-slate-100">Loading...</div>;
+    return <div className="flex justify-center items-center h-screen bg-bg-primary text-white">Loading...</div>;
   }
 
   const basePath = location.pathname === '/';
 
   return (
-    <div className='grid lg:grid-cols-[300px,1fr] h-screen max-h-screen'>
-      <section className={`bg-bg-secondary transition-colors ${!basePath && 'hidden'} lg:block`}>
-        <Sidebar user={user} onlineUsers={onlineUsers} socketConnection={socketConnection} />
-      </section>
+    <CallProvider socketConnection={socketConnection} user={user}>
+      <div className='grid lg:grid-cols-[320px,1fr] h-[100dvh] max-h-[100dvh] overflow-hidden'>
+        <section className={`glass-panel border-r border-white/5 shadow-2xl z-10 ${!basePath && 'hidden'} lg:block`}>
+          <Sidebar user={user} onlineUsers={onlineUsers} socketConnection={socketConnection} />
+        </section>
 
-      {/** Message component area **/}
-      <section className={`${basePath && 'hidden'} lg:block`}>
-        <Outlet context={{ user, socketConnection, onlineUsers }} />
-      </section>
-      
-      {basePath && (
-        <div className='hidden lg:flex justify-center items-center flex-col h-full bg-bg-primary transition-colors'>
-          <div>
-             <img src={logo} alt="logo" width={250} />
+        {/** Message component area **/}
+        <section className={`${basePath && 'hidden'} lg:block`}>
+          <Outlet context={{ user, socketConnection, onlineUsers }} />
+        </section>
+        
+        {basePath && (
+          <div className='hidden lg:flex h-full items-center justify-center bg-transparent p-8 text-center'>
+            <p className="text-text-secondary font-medium tracking-wide">Select a chat to start messaging</p>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+      <CallScreen />
+    </CallProvider>
   );
 };
 

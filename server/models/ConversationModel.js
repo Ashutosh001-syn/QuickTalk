@@ -21,6 +21,18 @@ const messageSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isCall: {
+        type: Boolean,
+        default: false
+    },
+    callType: {
+        type: String, // 'audio', 'video'
+        default: ""
+    },
+    callDuration: {
+        type: Number, // duration in seconds
+        default: 0
+    },
     msgByUserId : {
         type : mongoose.Schema.ObjectId,
         required : true,

@@ -30,17 +30,8 @@ async function getMessages(request, response) {
 
         const messages = conversation ? conversation.messages : [];
 
-        // Mark all messages from the other user as seen
-        if (conversation) {
-            const unseenMessages = messages.filter(msg => msg.seen === false && msg.msgByUserId.toString() !== currentUserId);
-            if (unseenMessages.length > 0) {
-                const { MessageModel } = require('../models/ConversationModel');
-                await MessageModel.updateMany(
-                    { _id: { $in: unseenMessages.map(m => m._id) } },
-                    { $set: { seen: true } }
-                );
-            }
-        }
+        // The frontend will emit 'mark_as_seen' via socket to mark these as seen,
+        // so we don't need to duplicate the DB update here.
 
         return response.status(200).json({
             message: "Messages fetched successfully",

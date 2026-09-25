@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { IoArrowBack, IoCamera } from 'react-icons/io5';
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -107,11 +109,23 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
     }
   };
 
-  return (
-    <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4'>
-      <div className='bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto'>
+  return ReactDOM.createPortal(
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center sm:p-4'
+      >
+        <motion.div 
+          initial={{ scale: 0.9, y: 20, opacity: 0 }} 
+          animate={{ scale: 1, y: 0, opacity: 1 }} 
+          exit={{ scale: 0.9, y: 20, opacity: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className='glass-panel w-full h-full sm:h-auto sm:max-w-md sm:rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] sm:border border-white/10 overflow-hidden sm:max-h-[90vh] overflow-y-auto flex flex-col'
+        >
         {/* Header */}
-        <div className='bg-gradient-to-r from-teal-500 to-emerald-500 p-6 text-white'>
+        <div className='bg-gradient-to-r from-[#00c6ff] to-[#0072ff] p-6 text-white'>
           <div className='flex items-center gap-3 mb-4'>
             <button onClick={onClose} className='hover:bg-white/20 rounded-full p-2 transition-colors'>
               <IoArrowBack size={22} />
@@ -138,7 +152,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
         </div>
 
         {/* Profile Form */}
-        <div className='p-6 space-y-6'>
+        <div className='p-6 space-y-6 flex-1 overflow-y-auto pb-20'>
           {/* Update Name Section */}
           <form onSubmit={handleUpdateProfile}>
             <h3 className='text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3'>Profile Info</h3>
@@ -150,7 +164,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder='Your name'
-                  className='w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all text-sm'
+                  className='w-full pl-10 pr-4 py-3 border border-white/10 bg-white/5 backdrop-blur-md rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-accent focus:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all text-sm'
                 />
               </div>
               <div className='relative'>
@@ -159,13 +173,13 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
                   type='email'
                   value={user?.email || ''}
                   disabled
-                  className='w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-400 text-sm cursor-not-allowed'
+                  className='w-full pl-10 pr-4 py-3 border border-white/5 rounded-xl bg-black/20 text-gray-400 text-sm cursor-not-allowed'
                 />
               </div>
               <button
                 type='submit'
                 disabled={loading}
-                className='w-full py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 text-sm'
+                className='w-full py-3 bg-bg-bubble-me hover:scale-[1.02] text-white font-semibold rounded-xl shadow-[0_0_15px_rgba(0,198,255,0.4)] transition-all disabled:opacity-50 text-sm'
               >
                 {loading ? 'Saving...' : 'Update Profile'}
               </button>
@@ -185,7 +199,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder='Current password'
-                  className='w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all text-sm'
+                  className='w-full pl-10 pr-10 py-3 border border-white/10 bg-white/5 backdrop-blur-md rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-accent focus:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all text-sm'
                 />
                 <button type='button' onClick={() => setShowCurrentPw(!showCurrentPw)} className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600'>
                   {showCurrentPw ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
@@ -198,7 +212,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder='New password (min 6 chars)'
-                  className='w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all text-sm'
+                  className='w-full pl-10 pr-10 py-3 border border-white/10 bg-white/5 backdrop-blur-md rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-accent focus:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all text-sm'
                 />
                 <button type='button' onClick={() => setShowNewPw(!showNewPw)} className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600'>
                   {showNewPw ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
@@ -211,7 +225,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder='Confirm new password'
-                  className='w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all text-sm'
+                  className='w-full pl-10 pr-10 py-3 border border-white/10 bg-white/5 backdrop-blur-md rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-accent focus:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all text-sm'
                 />
                 <button type='button' onClick={() => setShowConfirmPw(!showConfirmPw)} className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600'>
                   {showConfirmPw ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
@@ -220,7 +234,7 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
               <button
                 type='submit'
                 disabled={loading}
-                className='w-full py-3 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 text-sm'
+                className='w-full py-3 glass-panel hover:bg-white/10 text-white font-semibold rounded-xl transition-all disabled:opacity-50 text-sm'
               >
                 {loading ? 'Changing...' : 'Change Password'}
               </button>
@@ -234,28 +248,30 @@ const ProfilePage = ({ user, onClose, onUserUpdate }) => {
             <h3 className='text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3'>Theme Settings</h3>
             <div className='flex gap-3'>
               <button
-                onClick={() => handleThemeChange('light')}
-                className={`flex-1 py-2 rounded-lg border-2 ${theme === 'light' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-500'} transition-all`}
+                onClick={() => handleThemeChange('premium')}
+                className={`flex-1 py-2 rounded-lg border ${theme === 'premium' ? 'border-accent bg-accent/20 text-accent' : 'border-white/10 text-gray-400 hover:bg-white/5'} transition-all`}
               >
-                Light
+                Premium
               </button>
               <button
                 onClick={() => handleThemeChange('dark')}
-                className={`flex-1 py-2 rounded-lg border-2 ${theme === 'dark' ? 'border-teal-500 bg-slate-800 text-teal-400' : 'border-slate-200 text-slate-500'} transition-all`}
+                className={`flex-1 py-2 rounded-lg border ${theme === 'dark' ? 'border-accent bg-accent/20 text-accent' : 'border-white/10 text-gray-400 hover:bg-white/5'} transition-all`}
               >
                 Dark
               </button>
               <button
                 onClick={() => handleThemeChange('ocean')}
-                className={`flex-1 py-2 rounded-lg border-2 ${theme === 'ocean' ? 'border-teal-500 bg-[#0c1222] text-[#38bdf8]' : 'border-slate-200 text-slate-500'} transition-all`}
+                className={`flex-1 py-2 rounded-lg border ${theme === 'ocean' ? 'border-accent bg-accent/20 text-accent' : 'border-white/10 text-gray-400 hover:bg-white/5'} transition-all`}
               >
                 Ocean
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
   );
 };
 

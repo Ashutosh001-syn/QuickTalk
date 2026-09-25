@@ -2,6 +2,20 @@ const getUserDetailsFromToken = require('../helpers/getUserDetailsFromToken');
 const FriendRequestModel = require('../models/FriendRequestModel');
 const { io, userSocketMap } = require('../socket/index');
 
+// Socket updates use the same shape as GET /friend-requests, allowing the UI
+// to show and respond to a request immediately without a page refresh.
+async function emitFriendRequest(receiverId, friendRequest) {
+    const receiverSocketId = userSocketMap.get(receiverId.toString());
+    if (!receiverSocketId) return;
+
+    await friendRequest.populate('from', 'name email profile_pic');
+    const payload = friendRequest.toObject();
+    // `sender` is retained for the existing toast listener; `from` is used by
+    // the requests modal and contains the full request record and its ID.
+    payload.sender = payload.from;
+    io.to(receiverSocketId).emit('friend_request', payload);
+}
+
 async function sendFriendRequest(request, response) {
     try {
         const token = request.cookies.token || "";
@@ -43,17 +57,7 @@ async function sendFriendRequest(request, response) {
                 existing.status = 'pending';
                 await existing.save();
 
-                const receiverSocketId = userSocketMap.get(toUserId);
-                if (receiverSocketId) {
-                    io.to(receiverSocketId).emit('friend_request', {
-                        from: {
-                            _id: user._id,
-                            name: user.name,
-                            profile_pic: user.profile_pic
-                        },
-                        status: 'pending'
-                    });
-                }
+                await emitFriendRequest(toUserId, existing);
 
                 return response.status(200).json({ message: "Friend request sent", success: true });
             }
@@ -65,17 +69,7 @@ async function sendFriendRequest(request, response) {
         });
         await newRequest.save();
 
-        const receiverSocketId = userSocketMap.get(toUserId);
-        if (receiverSocketId) {
-            io.to(receiverSocketId).emit('friend_request', {
-                from: {
-                    _id: user._id,
-                    name: user.name,
-                    profile_pic: user.profile_pic
-                },
-                status: 'pending'
-            });
-        }
+        await emitFriendRequest(toUserId, newRequest);
 
         return response.status(200).json({ message: "Friend request sent", success: true });
 
